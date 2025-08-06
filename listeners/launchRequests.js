@@ -9,7 +9,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-export async function watchLaunchRequests() {
+export async function listenToLaunchRequests() {
   console.log('Listening for new EC2 launch requests...')
 
   const channel = supabase
