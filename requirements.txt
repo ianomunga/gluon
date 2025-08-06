@@ -1,0 +1,4 @@
+supabase
+boto3
+paramiko
+python-dotenv

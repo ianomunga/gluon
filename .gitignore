@@ -1,0 +1,51 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Logs
+logs/
+*.log
+*.out
+*.err
+
+# dotenv environment variables
+.env
+.env.*
+
+# Supabase keys (loaded at runtime or from secrets manager)
+supabase.env
+
+# Shell history or artifacts
+*.swp
+*.swo
+*.bak
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# SSH Keys
+*.pem
+.ssh/
+*.pub
+
+# Compiled output
+dist/
+build/
+.out/
+*.tsbuildinfo
+
+# Temporary files
+*.tmp
+*.temp
+
+# Vscode workspace config
+.vscode/
+
+# Mac/Linux file system clutter
+*.orig
+*.old
+*.retry
