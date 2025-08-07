@@ -23,14 +23,44 @@ export async function connectInstance(instance) {
     fs.writeFileSync(keyPath, pem_private_key, { mode: 0o400 })
   }
 
-  // Restore any old notebooks from prior session
-  const restored = await downloadPreviousNotebooks({ supabase, user_id, instance_id, ssh_username, public_ip, keyPath })
-
   const localScript = path.resolve('scripts/bootstrap-ec2.sh')
   const remotePath = '/tmp/bootstrap-ec2.sh'
 
+  // Restore any old notebooks
+  await downloadPreviousNotebooks({ supabase, user_id, instance_id, ssh_username, public_ip, keyPath })
+
+  console.log('Uploading bootstrap script...')
   await execPromise(`scp -i ${keyPath} -o StrictHostKeyChecking=no "${localScript}" ${ssh_username}@${public_ip}:${remotePath}`)
-  await execPromise(`ssh -i ${keyPath} -o StrictHostKeyChecking=no ${ssh_username}@${public_ip} 'chmod +x ${remotePath} && sudo ${remotePath} "${process.env.SUPABASE_FUNCTION_URL}" "${process.env.SUPABASE_SERVICE_ROLE_KEY}" "${session_id}"'`)
+
+  let shouldReconnect = false
+
+  console.log('Running bootstrap script...')
+  try {
+    await execPromise(`ssh -i ${keyPath} -o StrictHostKeyChecking=no ${ssh_username}@${public_ip} "chmod +x ${remotePath} && sudo ${remotePath} '${process.env.SUPABASE_FUNCTION_URL}' '${process.env.SUPABASE_SERVICE_ROLE_KEY}' '${session_id}'"`)
+  } catch (err) {
+    if (err.code === 100 || err.message.includes("exit code 100")) {
+      console.log('Reboot detected. Waiting for instance to come back...')
+      shouldReconnect = true
+      await waitForInstance(public_ip, ssh_username, keyPath)
+    } else {
+      throw err
+    }
+  }
+
+  if (shouldReconnect) {
+    console.log('Reconnecting and continuing setup...')
+    await execPromise(`ssh -i ${keyPath} -o StrictHostKeyChecking=no ${ssh_username}@${public_ip} "sudo ${remotePath} '${process.env.SUPABASE_FUNCTION_URL}' '${process.env.SUPABASE_SERVICE_ROLE_KEY}' '${session_id}'"`)
+  }
+
+  // Now the session is ready, open Jupyter
+  await openJupyterSession(instance, session_id)
+}
+
+// 🔄 Split-out function for launching and handling Jupyter session
+export async function openJupyterSession(instance, session_id) {
+  const { public_ip, ssh_username, instance_id, user_id } = instance
+  const keyName = `instance-${instance_id}.pem`
+  const keyPath = path.join(process.env.HOME, '.ssh', keyName)
 
   const sshCmd = [
     'ssh',
@@ -41,7 +71,7 @@ export async function connectInstance(instance) {
     `"source ~/venvs/sshkernel-env/bin/activate && jupyter lab --no-browser --ip=0.0.0.0 --port=8888"`
   ]
 
-  console.log('🔌 Establishing SSH connection and port forwarding...')
+  console.log('🔌 Establishing SSH tunnel to JupyterLab...')
   const sshProc = spawn(sshCmd.join(' '), {
     shell: true,
     stdio: ['inherit', 'pipe', 'pipe']
@@ -59,7 +89,7 @@ export async function connectInstance(instance) {
     fs.mkdirSync(downloadDir, { recursive: true })
 
     const scpDownloadCmd = `scp -i ${keyPath} -o StrictHostKeyChecking=no -r ${ssh_username}@${public_ip}:~/notebooks/*.ipynb "${downloadDir}"`
-    console.log(`⬇Downloading notebook files...`)
+    console.log(`⬇ Downloading notebook files...`)
     await execPromise(scpDownloadCmd)
 
     await uploadNotebooksToSupabase({ supabase, session_id, user_id, localFolder: downloadDir })
@@ -82,8 +112,30 @@ export async function connectInstance(instance) {
 function execPromise(cmd) {
   return new Promise((resolve, reject) => {
     exec(cmd, (err, stdout, stderr) => {
-      if (err) reject(err)
-      else resolve(stdout)
+      if (err) {
+        err.stdout = stdout
+        err.stderr = stderr
+        reject(err)
+      } else {
+        resolve(stdout)
+      }
     })
   })
+}
+
+//Updated to use actual ssh_username and keyPath
+async function waitForInstance(ip, ssh_username, keyPath) {
+  let isUp = false
+  const maxRetries = 30
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      await execPromise(`ssh -i ${keyPath} -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${ssh_username}@${ip} "echo up"`)
+      isUp = true
+      break
+    } catch {
+      console.log(`Waiting for ${ip} to reboot... (${i + 1}/${maxRetries})`)
+      await new Promise(r => setTimeout(r, 10000))
+    }
+  }
+  if (!isUp) throw new Error(`Instance at ${ip} did not come back online in time.`)
 }
