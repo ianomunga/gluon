@@ -6,3 +6,5 @@ Latest [stable image](https://ghcr.io/ianomunga/gluon-automation-server) of the 
 $ docker pull ghcr.io/ianomunga/gluon-automation-server:latest
 ```
 
+Docker builds now running automatically on each stable repo push via GitHub Actions
+
