@@ -14,6 +14,11 @@ const PORT = process.env.PORT || 3000
 app.use(cors())
 app.use(express.json())
 
+// Health check route — used by Cloudflare Worker to confirm server is live
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' })
+})
+
 // Mount the launch API route for Webflow or frontend use
 app.use('/api/launch', launchRouter)
 
