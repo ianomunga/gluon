@@ -1,14 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-exec > >(tee -a ~/setup.log) 2>&1  # Optional: log output for debugging
-
 SUPABASE_FUNCTION_URL="$1"
 SUPABASE_SERVICE_ROLE_KEY="$2"
 SESSION_ID="$3"
 
 notify_webapp() {
-  echo "Notifying Supabase that session is ready..."
   curl -s -X POST "$SUPABASE_FUNCTION_URL" \
     -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
     -H "Content-Type: application/json" \
@@ -45,10 +42,28 @@ if [ "$reboot_needed" = true ]; then
 fi
 
 # Create venv and install kernel
-mkdir -p ~/venvs
 python3 -m venv ~/venvs/sshkernel-env
 source ~/venvs/sshkernel-env/bin/activate
 pip install ipykernel
 python -m ipykernel install --user --name=sshkernel-env --display-name "Python (Remote SSH Kernel)"
+
+# Setup custom logo
+echo "Setting up custom JupyterLab logo override..."
+
+CUSTOM_LOGO_DIR=~/.jupyter/lab/user-settings/@jupyterlab/apputils-extension
+mkdir -p "$CUSTOM_LOGO_DIR"
+
+cat <<EOF > "$CUSTOM_LOGO_DIR/page_config.json"
+{
+  "logo": "/custom/dataspiresLogo.svg"
+}
+EOF
+
+mkdir -p ~/jupyterlab-custom-assets
+
+# Move the uploaded logo (assumes it's been SCP’d into ~/)
+mv ~/dataspiresLogo.svg ~/jupyterlab-custom-assets/dataspiresLogo.svg
+
+echo "c.ServerApp.extra_static_paths = ['~/jupyterlab-custom-assets']" >> ~/.jupyter/jupyter_server_config.py
 
 notify_webapp

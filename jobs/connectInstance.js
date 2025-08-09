@@ -29,6 +29,15 @@ export async function connectInstance(instance) {
   // Restore any old notebooks
   await downloadPreviousNotebooks({ supabase, user_id, instance_id, ssh_username, public_ip, keyPath })
 
+    // Path to the local logo
+  const localLogoPath = path.resolve('assets/dataspiresLogo.svg')
+  const remoteLogoPath = '~/dataspiresLogo.svg'
+
+  // Upload the custom logo to EC2
+  console.log('📤 Uploading custom logo...')
+  await execPromise(`scp -i ${keyPath} -o StrictHostKeyChecking=no "${localLogoPath}" ${ssh_username}@${public_ip}:${remoteLogoPath}`)
+
+
   console.log('Uploading bootstrap script...')
   await execPromise(`scp -i ${keyPath} -o StrictHostKeyChecking=no "${localScript}" ${ssh_username}@${public_ip}:${remotePath}`)
 
