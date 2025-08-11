@@ -19,8 +19,8 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' })
 })
 
-// Mount the launch API route for Webflow or frontend use
-app.use('/api/launch', launchRouter)
+// Mount the launch API route for Webflow or frontend use  //changed for Lambda!
+app.use('/launch', launchRouter)
 
 // Start HTTP server
 app.listen(PORT, () => {

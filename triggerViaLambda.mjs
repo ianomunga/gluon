@@ -2,7 +2,7 @@
 const API_GATEWAY_URL = 'https://cw9ahgiyrl.execute-api.us-east-1.amazonaws.com/staging/launch';
 
 const testPayload = {
-  user_id: '9c0f7e26-eb29-4567-bcc7-f44a3e64e107',
+  user_id: '3c462671-54dd-4f40-9e69-37b96dccf7eb', //breanna's uuid since Krupa's is deleted somehow from supabase
   instance_type: 'g4dn.2xlarge',  // ← matches the fixed T4 instance
   ami_id: 'ami-0a7d80731ae1b2435' // ← T4 instance AMI
 };
