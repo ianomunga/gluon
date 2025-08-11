@@ -12,9 +12,20 @@ export async function listenToT4LaunchQueue() {
       table: 't4_launch_queue'
     }, async (payload) => {
       const request = payload.new;
-      console.log('🚀 Launch request detected (T4):', request);
-      await bootT4Instance(request);
+      console.log('Launch request detected (T4):', request);
+
+      try {
+        await bootT4Instance(request);
+        console.log('bootT4Instance triggered successfully');
+      } catch (error) {
+        console.error('Error in bootT4Instance:', error);
+      }
     });
 
-  await channel.subscribe();
+  const { error } = await channel.subscribe();
+  if (error) {
+    console.error('Error subscribing to t4_launch_queue channel:', error);
+  } else {
+    console.log('Subscribed to t4_launch_queue events');
+  }
 }
